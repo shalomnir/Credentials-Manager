@@ -1,11 +1,33 @@
 
-import glob
-import cv2 as cv
 from PIL import Image
+import numpy as np
+import cv2 as cv
 import simplejson as json
-def GetImgHistogram(imgArr):
+import sys
+import glob
+from functools import reduce
+
+SIDE = 3
+
+def blockshaped(arr, nrows, ncols):
+	"""
+	Return an array of shape (n, nrows, ncols) where
+	n * nrows * ncols = arr.size
 	
-	img = (Image.fromarray(imgArr)).convert('L')
+	If arr is a 2D array, the returned array should look like n subblocks with
+	each subblock preserving the "physical" layout of arr.
+	"""
+	
+	h, w, z = arr.shape
+	print(type(h))
+	print(type(w))
+	print(type(nrows))
+	print(type(ncols))
+	return (arr.reshape(h//nrows, nrows, -1, ncols).swapaxes(1,2).reshape(-1, nrows, ncols))
+			   
+def GetSectionHistogram(section):
+	
+	img = (Image.fromarray(section)).convert('L')
 	#img = Image.open(img.filename).convert('L')  # convert image to 8-bit grayscale
 	WIDTH, HEIGHT = img.size
 	
@@ -73,11 +95,24 @@ def GetImgHistogram(imgArr):
 	return(histogram)
 
 
+def GetFaceHistograms(face):
+	
+	height = np.size(face, 0)
+	width = np.size(face, 1)
+	print(height, width)
+	#width, height = face.size
+	face_histogram = []*(SIDE*SIDE)
+	sections = blockshaped(face, int(height/SIDE), int(width/SIDE))
+	for i in range(SIDE*SIDE):
+		face_histogram[i] = GetSectionHistogram(sections[i])
+	
+	return face_histogram
+
 
 def facechop():  
 	cascPath = "haarcascade_frontalface_default.xml"
 	faceCascade = cv.CascadeClassifier(cascPath)
-	f = open("nirHistograms.json", "a")
+	f = open("nirHistograms.json", "w")
 	data = {
 				"histogram": []
 			}	
@@ -102,7 +137,7 @@ def facechop():
 			cv.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 			crop_img = frame[y:y+h, x:x+w]
 			cv.imshow('Video',frame)
-			data["histogram"].append(GetImgHistogram(crop_img))
+			data["histogram"].append(GetFaceHistograms(crop_img))
 			count+=1
 				#cv.imshow('Video',crop_img)
 				
@@ -134,9 +169,9 @@ def CreateJson():
 	data = {
 				"histogram": []
 			}	
-	for filename in glob.glob(r'C:\Users\nirsh\Desktop\photos\nirImages\*.png'):		
-			data["histogram"].append(GetImgHistogram(cv.imread(filename, 0)))
-			y = json.dumps(data)
-			f.write(y)
+	#for filename in glob.glob(r'C:\Users\nirsh\Desktop\photos\nirImages\*.png'):		
+	#		data["histogram"].append(GetImgHistogram(cv.imread(filename, 0)))
+	#		y = json.dumps(data)
+	#		f.write(y)
 		
 facechop()

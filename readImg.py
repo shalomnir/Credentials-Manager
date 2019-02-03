@@ -6,9 +6,26 @@ import sys
 import glob
 from functools import reduce
 
-def GetImgHistogram(imgArr):
+SIDE = 3
+WEIGHTS = [0.5,1,0.5,0.2,3,0.2,0.1,2.5,0.1]
+
+def blockshaped(arr, nrows, ncols):
+    """
+    Return an array of shape (n, nrows, ncols) where
+    n * nrows * ncols = arr.size
+
+    If arr is a 2D array, the returned array should look like n subblocks with
+    each subblock preserving the "physical" layout of arr.
+    """
+    h, w = arr.shape
+    return (arr.reshape(h//nrows, nrows, -1, ncols)
+               .swapaxes(1,2)
+               .reshape(-1, nrows, ncols))
+			   
+			   
+def GetSectionHistogram(section):
 	
-	img = (Image.fromarray(imgArr)).convert('L')
+	img = (Image.fromarray(section)).convert('L')
 	#img = Image.open(img.filename).convert('L')  # convert image to 8-bit grayscale
 	WIDTH, HEIGHT = img.size
 	
@@ -74,22 +91,35 @@ def GetImgHistogram(imgArr):
 			histogram[int(binList, 2)]+=1;
 				
 	return(histogram)
+
+
+def GetFaceHistograms(face):
+	width, height = face.size
+	face_histogram = []*(SIDE*SIDE)
+	sections = blockshaped(img , height/SIDE, width/SIDE)
+	for i in range(SIDE*SIDE):
+		face_histogram[i] = GetSectionHistogram(sections[i])
 	
-def ChiSquareCompering(H1,H2):
+	return face_histogram
+
+	
+def ChiSquareCompering(H1,H2,weights):
 	d = 0
-	for i in range(0,len(H1)):
-		if(H1[i] != 0):
-			d += np.square(H1[i]-H2[i])/H1[i]
+	for j in range(SIDE*SIDE):
+		for i in range(256)
+			d += weights[j]*np.square(H1[j][i]-H2[j][i])/(H1[j][i]+H2[j][i])
 	return d
 
 	
 def FaceCompare(img):
+	
 	d = []
 	avg_d = -1
+	face_histogram = GetFaceHistograms(img)
 	with open('nirHistograms.json') as f:
 		data = json.load(f)
 	for hist in data['histogram']:
-		d.append(ChiSquareCompering(GetImgHistogram(img),hist))
+		d.append(ChiSquareCompering(face_histogram,hist,WEIGHTS))
 	avg_d = reduce(lambda x, y: x + y, d, 0) / len(d)	
 	if(avg_d < 2000 and avg_d != -1):
 		print ("AAAAAAAAAAAAAAAAAAA",avg_d)
@@ -101,6 +131,8 @@ def facechop():
 	faceCascade = cv.CascadeClassifier(cascPath)
 	
 	video_capture = cv.VideoCapture(0)
+	
+	
 	
 	while True:
 		# Capture frame-by-frame
@@ -120,13 +152,14 @@ def facechop():
 		for (x, y, w, h) in faces:
 			cv.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 			crop_img = frame[y:y+h, x:x+w]
-			cv.imshow('Video',frame)
+			# cv.imshow('Video',frame)
 			FaceCompare(crop_img)
-				#cv.imshow('Video',crop_img)
+			#cv.imshow('Video',crop_img)
 				
 			
 		# Display the resulting frame
 			#cv.imshow('Video',crop_img)
+		cv.imshow('Video',frame)
 		
 		if cv.waitKey(1) & 0xFF == ord('q'):
 			break
@@ -140,4 +173,4 @@ def facechop():
 	
 print (facechop())
 	
-#print (cv.compareHist(np.array(GetImgHistogram('3.png')),np.array(GetImgHistogram('2.png')),  cv.HISTCMP_CHISQR))
+#print (cv.compareHist(np.array(GetSectionHistogram('3.png')),np.array(GetSectionHistogram('2.png')),  cv.HISTCMP_CHISQR))
