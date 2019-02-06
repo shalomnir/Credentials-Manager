@@ -93,8 +93,9 @@ def GetSectionHistogram(section):
 	return(histogram)
 
 
-def GetFaceHistograms(face):
-	width, height = face.size
+def GetFaceHistograms(faceImg):
+	
+	width, height = faceImg.size
 	face_histogram = []*(SIDE*SIDE)
 	sections = blockshaped(img , height/SIDE, width/SIDE)
 	for i in range(SIDE*SIDE):
@@ -105,23 +106,23 @@ def GetFaceHistograms(face):
 	
 def ChiSquareCompering(H1,H2,weights):
 	d = 0
-	for j in range(SIDE*SIDE):
-		for i in range(256)
+	for j in range(SIDE*SIDE):#Passing all sections
+		for i in range(256): 
 			d += weights[j]*np.square(H1[j][i]-H2[j][i])/(H1[j][i]+H2[j][i])
 	return d
 
 	
-def FaceCompare(img):
+def FaceCompare(faceImg):
 	
 	d = []
 	avg_d = -1
-	face_histogram = GetFaceHistograms(img)
-	with open('nirHistograms.json') as f:
-		data = json.load(f)
-	for hist in data['histogram']:
-		d.append(ChiSquareCompering(face_histogram,hist,WEIGHTS))
+	input_face_histogram = GetFaceHistograms(faceImg) #get histogram of the face, needed fo comparing
+	with open('nirHistograms.json') as file: #open the DB. json contain sum faces histograms
+		data = json.load(file)
+	for histogram_DB in data['histogram']:
+		d.append(ChiSquareCompering(input_face_histogram,histogram_DB,WEIGHTS))#comparing between the input face histogram and all the histograms of the user
 	avg_d = reduce(lambda x, y: x + y, d, 0) / len(d)	
-	if(avg_d < 2000 and avg_d != -1):
+	if(avg_d < 2000 and avg_d != -1): #calculate the avg distance
 		print ("AAAAAAAAAAAAAAAAAAA",avg_d)
 		exit()
 	print("NNNNNNNNNNNNNNNNN", avg_d)
@@ -131,9 +132,7 @@ def facechop():
 	faceCascade = cv.CascadeClassifier(cascPath)
 	
 	video_capture = cv.VideoCapture(0)
-	
-	
-	
+		
 	while True:
 		# Capture frame-by-frame
 		ret, frame = video_capture.read()
@@ -152,12 +151,13 @@ def facechop():
 		for (x, y, w, h) in faces:
 			cv.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 			crop_img = frame[y:y+h, x:x+w]
+			print(type(crop_img))
 			# cv.imshow('Video',frame)
 			FaceCompare(crop_img)
 			#cv.imshow('Video',crop_img)
 				
 			
-		# Display the resulting frame
+			# Display the resulting frame
 			#cv.imshow('Video',crop_img)
 		cv.imshow('Video',frame)
 		
